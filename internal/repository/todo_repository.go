@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"time"
-	"todo_api/internal/models"
+	"todo_api/internal/domain"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func CreateTodo(pool *pgxpool.Pool, title string, completed bool) (*models.Todo, error) {
+func CreateTodo(pool *pgxpool.Pool, title string, completed bool) (*domain.Todo, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -21,7 +21,7 @@ func CreateTodo(pool *pgxpool.Pool, title string, completed bool) (*models.Todo,
 		RETURNING id, title, completed, created_at, updated_at
 	`
 
-	var todo models.Todo
+	var todo domain.Todo
 
 	var err error = pool.QueryRow(ctx, query, title, completed).Scan(
 		&todo.ID,
@@ -39,7 +39,7 @@ func CreateTodo(pool *pgxpool.Pool, title string, completed bool) (*models.Todo,
 
 }
 
-func GetAllTodo(pool *pgxpool.Pool) ([]models.Todo, error) {
+func GetAllTodo(pool *pgxpool.Pool) ([]domain.Todo, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -59,10 +59,10 @@ func GetAllTodo(pool *pgxpool.Pool) ([]models.Todo, error) {
 
 	defer rows.Close()
 
-	var todos []models.Todo = []models.Todo{}
+	var todos []domain.Todo = []domain.Todo{}
 
 	for rows.Next() {
-		var todo models.Todo
+		var todo domain.Todo
 		err = rows.Scan(
 			&todo.ID,
 			&todo.Title,
@@ -84,7 +84,7 @@ func GetAllTodo(pool *pgxpool.Pool) ([]models.Todo, error) {
 
 }
 
-func GetTodoById(pool *pgxpool.Pool, id int) (*models.Todo, error) {
+func GetTodoById(pool *pgxpool.Pool, id int) (*domain.Todo, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -96,7 +96,7 @@ func GetTodoById(pool *pgxpool.Pool, id int) (*models.Todo, error) {
 		FROM todo_api
 		WHERE id = $1;
 	`
-	var todo models.Todo
+	var todo domain.Todo
 	var err = pool.QueryRow(ctx, query, id).Scan(
 		&todo.ID,
 		&todo.Title,
@@ -113,7 +113,7 @@ func GetTodoById(pool *pgxpool.Pool, id int) (*models.Todo, error) {
 
 }
 
-func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool) (*models.Todo, error) {
+func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool) (*domain.Todo, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -126,7 +126,7 @@ func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool) (*model
 		RETURNING id, title, completed, updated_at, created_at;
 	`
 
-	var todo models.Todo
+	var todo domain.Todo
 
 	var err = pool.QueryRow(ctx, query, title, complete, id).Scan(
 		&todo.ID,

@@ -128,6 +128,7 @@ func UpdateTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 				return
 			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 		c.JSON(http.StatusOK, todo)
 
@@ -140,6 +141,7 @@ func DeleteTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo id"})
+			return
 		}
 
 		err = repository.DeleteTodo(pool, id)
@@ -149,6 +151,7 @@ func DeleteTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 				return
 			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "Todo deleted succesfully"})
