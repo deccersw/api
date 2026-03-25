@@ -33,6 +33,7 @@ Hot Reloading — интеграция с Air для разработки
 
 
 ## Структура API
+```
 Go-Gin-Postgres-Todo-REST-API/
 ├── cmd/
 │   └── api/
@@ -64,7 +65,7 @@ Go-Gin-Postgres-Todo-REST-API/
 ├── .env.example                 # Пример Переменных окружений
 ├── go.mod                       # Go модуль
 └── go.sum                       # Контрольные суммы зависимостей
-
+```
 
 ## Используемые технологии
 Go — язык программирования backend
@@ -76,3 +77,4 @@ bcrypt — хеширование паролей
 golang-migrate — миграции базы данных
 Air — hot reload при разработке
 godotenv — управление переменными окружения
+
