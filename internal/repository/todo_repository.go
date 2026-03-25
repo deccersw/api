@@ -126,7 +126,7 @@ func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool, userID 
 	var query string = `
 		UPDATE todo_api
 		SET title = $1, completed = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3 AND user_id = $3
+		WHERE id = $3 AND user_id = $4
 		RETURNING id, title, completed, updated_at, created_at, user_id;
 	`
 
@@ -162,7 +162,7 @@ func DeleteTodo(pool *pgxpool.Pool, id int, userID string) error {
 
 	commandTag, err := pool.Exec(ctx, query, id, userID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if commandTag.RowsAffected() == 0 {
