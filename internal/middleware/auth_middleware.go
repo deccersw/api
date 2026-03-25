@@ -14,7 +14,6 @@ import (
 func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
-
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
 			c.Abort()
@@ -48,7 +47,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		UserID, ok := Claims["user_id"].(string)
+		userID, ok := Claims["user_id"].(string)
 
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token Claims"})
@@ -57,8 +56,8 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		if exp, ok := Claims["exp"].(float64); ok {
-			expiration := time.Unix(int64(exp), 0 )
-			time.Now().After(expiration){
+			expiration := time.Unix(int64(exp), 0)
+			if time.Now().After(expiration) {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token has expired"})
 				c.Abort()
 				return

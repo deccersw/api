@@ -5,6 +5,7 @@ import (
 	"todo_api/internal/config"
 	"todo_api/internal/database"
 	"todo_api/internal/handlers"
+	"todo_api/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,13 +37,19 @@ func main() {
 			"database_connected": "connected",
 		})
 	})
-	router.POST("/todo", handlers.CreateTodoHandler(pool))
-	router.GET("/todo", handlers.GetAllTodoHandler(pool))
-	router.GET("/todo/:id", handlers.GetTodoByIdHandler(pool))
-	router.PATCH("/todo/:id", handlers.UpdateTodoHandler(pool))
-	router.DELETE("/todo/:id", handlers.DeleteTodoHandler(pool))
+
 	router.POST("/auth/register", handlers.CreateUserHandler(pool))
 	router.POST("/auth/login", handlers.LoginHandler(pool, cfg))
+	protected := router.Group("/todo")
+	protected.Use(middleware.AuthMiddleware(cfg))
+	{
+		protected.POST("", handlers.CreateTodoHandler(pool))
+		protected.GET("", handlers.GetAllTodoHandler(pool))
+		protected.GET("/:id", handlers.GetTodoByIdHandler(pool))
+		protected.PATCH("/:id", handlers.UpdateTodoHandler(pool))
+		protected.DELETE("/:id", handlers.DeleteTodoHandler(pool))
+	}
+
 	router.Run(":" + cfg.PORT)
 
 }
