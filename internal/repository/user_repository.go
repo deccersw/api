@@ -44,7 +44,7 @@ func GetUserByEmail(pool *pgxpool.Pool, email string) (*domain.User, error) {
 
 	query := `
 		SELECT 
-		id, email, created_at, updated_at
+		id, email, password, created_at, updated_at
 		FROM user_api
 		WHERE email = $1;
 	`
@@ -54,6 +54,7 @@ func GetUserByEmail(pool *pgxpool.Pool, email string) (*domain.User, error) {
 	err := pool.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
+		&user.Password,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -74,7 +75,7 @@ func GetUserByID(pool *pgxpool.Pool, id string) (*domain.User, error) {
 
 	query := `
 		SELECT 
-		id, email, created_at, updated_at
+		id, email,password, created_at, updated_at
 		FROM user_api
 		WHERE id = $1;
 	`
@@ -84,6 +85,7 @@ func GetUserByID(pool *pgxpool.Pool, id string) (*domain.User, error) {
 	err := pool.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
+		&user.Password,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)

@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	Port    string
-	Host    string
-	DBName  string
-	SSlmode string
-	User    string
-	PORT    string
+	Port      string
+	Host      string
+	DBName    string
+	SSlmode   string
+	User      string
+	PORT      string
+	JWTSecret string
 }
 
 func Load() (*Config, error) {
@@ -23,12 +24,13 @@ func Load() (*Config, error) {
 	}
 
 	var config *Config = &Config{
-		Port:    os.Getenv("DB_PORT"),
-		Host:    os.Getenv("DB_HOST"),
-		DBName:  os.Getenv("DB_NAME"),
-		SSlmode: os.Getenv("DB_SSLMODE"),
-		User:    os.Getenv("DB_USER"),
-		PORT:    os.Getenv("PORT"),
+		Port:      os.Getenv("DB_PORT"),
+		Host:      os.Getenv("DB_HOST"),
+		DBName:    os.Getenv("DB_NAME"),
+		SSlmode:   os.Getenv("DB_SSLMODE"),
+		User:      os.Getenv("DB_USER"),
+		PORT:      os.Getenv("PORT"),
+		JWTSecret: os.Getenv("JWT_SECRET"),
 	}
 
 	return config, nil
