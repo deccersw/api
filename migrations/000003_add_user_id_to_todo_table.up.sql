@@ -1,0 +1,3 @@
+ALTER TABLE todo_api DROP CONSTRAINT IF EXISTS fk_todo_uder;
+
+ALTER TABLE todo_api DROP COLUMN IF EXISTS user_id;
