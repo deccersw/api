@@ -1,55 +1,97 @@
+// cmd/api/main.go
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 	"todo_api/internal/config"
 	"todo_api/internal/database"
 	"todo_api/internal/handlers"
 	"todo_api/internal/middleware"
+	"todo_api/internal/repository"
+	"todo_api/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	var cfg *config.Config
-	var err error
-	cfg, err = config.Load()
-
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Failed to load config", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 
-	var pool *pgxpool.Pool
-	pool, err = database.Connect(cfg.Port, cfg.Host, cfg.DBName, cfg.SSlmode, cfg.User)
-
+	pool, err := database.Connect(cfg.Port, cfg.Host, cfg.DBName, cfg.SSlmode, cfg.User)
 	if err != nil {
-		log.Fatal("Failed to connect to database", err)
+		log.Fatalf("failed to connect to database: %v", err)
 	}
-
 	defer pool.Close()
 
-	var router *gin.Engine = gin.Default()
+	todoRepo := repository.NewTodoRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+
+	todoService := service.NewTodoService(todoRepo)
+	userService := service.NewUserService(userRepo, cfg.JWTSecret, 24*time.Hour)
+
+	todoHandler := handlers.NewTodoHandler(todoService)
+	userHandler := handlers.NewUserHandler(userService)
+
+	router := gin.Default()
+
 	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message":            "TODO API is running",
-			"status":             "success",
-			"database_connected": "connected",
-		})
+		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	router.POST("/auth/register", handlers.CreateUserHandler(pool))
-	router.POST("/auth/login", handlers.LoginHandler(pool, cfg))
-	protected := router.Group("/todo")
-	protected.Use(middleware.AuthMiddleware(cfg))
+	auth := router.Group("/auth")
 	{
-		protected.POST("", handlers.CreateTodoHandler(pool))
-		protected.GET("", handlers.GetAllTodoHandler(pool))
-		protected.GET("/:id", handlers.GetTodoByIdHandler(pool))
-		protected.PATCH("/:id", handlers.UpdateTodoHandler(pool))
-		protected.DELETE("/:id", handlers.DeleteTodoHandler(pool))
+		auth.POST("/register", userHandler.Register)
+		auth.POST("/login", userHandler.Login)
 	}
 
-	router.Run(":" + cfg.PORT)
+	todo := router.Group("/todo")
+	todo.Use(middleware.AuthMiddleware(cfg))
+	{
+		todo.POST("", todoHandler.Create)
+		todo.GET("", todoHandler.GetAll)
+		todo.GET("/:id", todoHandler.GetByID)
+		todo.PATCH("/:id", todoHandler.Update)
+		todo.DELETE("/:id", todoHandler.Delete)
+	}
+
+	log.Printf("server starting on port %s", cfg.PORT)
+	if err := router.Run(":" + cfg.PORT); err != nil {
+		log.Fatalf("failed to start server: %v", err)
+	}
+
+	srv := &http.Server{
+		Addr:    ":" + cfg.PORT,
+		Handler: router,
+	}
+
+	go func() {
+		log.Printf("server starting on port %s", cfg.PORT)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("failed to start server: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("server forced to shutdown: %v", err)
+	}
+
+	log.Println("server exited")
 
 }
