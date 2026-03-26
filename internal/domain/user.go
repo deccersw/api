@@ -12,6 +12,5 @@ type User struct {
 
 type CreateUserInput struct {
 	Email    string
-	User     string
 	Password string
 }
