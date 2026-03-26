@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"todo_api/internal/domain"
 	"todo_api/internal/ports"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -12,11 +14,11 @@ type userRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewUserReposytory(pool *pgxpool.Pool) ports.UserRepository {
+func NewUserRepository(pool *pgxpool.Pool) ports.UserRepository {
 	return &userRepository{pool: pool}
 }
 
-func (r userRepository) Create(ctx context.Context, input domain.CreateUserInput) (*domain.User, error) {
+func (r *userRepository) Create(ctx context.Context, input domain.CreateUserInput) (*domain.User, error) {
 
 	query := `
 		INSERT INTO user_api (email,password)
@@ -32,13 +34,16 @@ func (r userRepository) Create(ctx context.Context, input domain.CreateUserInput
 	)
 
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrAlreadyExists
+		}
 		return nil, err
 	}
 
 	return &user, nil
 }
 
-func (r userRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+func (r *userRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 
 	query := `
 		SELECT 
@@ -58,13 +63,16 @@ func (r userRepository) GetByEmail(ctx context.Context, email string) (*domain.U
 	)
 
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
 		return nil, err
 	}
 
 	return &user, nil
 }
 
-func (r userRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 
 	query := `
 		SELECT 
@@ -84,6 +92,9 @@ func (r userRepository) GetByID(ctx context.Context, id string) (*domain.User, e
 	)
 
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
 		return nil, err
 	}
 
