@@ -2,18 +2,23 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"time"
+	"errors"
 	"todo_api/internal/domain"
+	"todo_api/internal/ports"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func CreateTodo(pool *pgxpool.Pool, title string, completed bool, userID string) (*domain.Todo, error) {
-	var ctx context.Context
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+type todoRepository struct {
+	pool *pgxpool.Pool
+}
+
+func NewTodoRepository(pool *pgxpool.Pool) ports.TodoRepository {
+	return &todoRepository{pool: pool}
+}
+
+func (r *todoRepository) Create(ctx context.Context, input domain.CreateTodoInput, userID string) (*domain.Todo, error) {
 
 	var query string = `
 		INSERT INTO todo_api (title, completed, user_id)
@@ -23,7 +28,7 @@ func CreateTodo(pool *pgxpool.Pool, title string, completed bool, userID string)
 
 	var todo domain.Todo
 
-	var err error = pool.QueryRow(ctx, query, title, completed, userID).Scan(
+	var err error = r.pool.QueryRow(ctx, query, input.Title, input.Completed, userID).Scan(
 		&todo.ID,
 		&todo.Title,
 		&todo.Completed,
@@ -40,11 +45,7 @@ func CreateTodo(pool *pgxpool.Pool, title string, completed bool, userID string)
 
 }
 
-func GetAllTodo(pool *pgxpool.Pool, userID string) ([]domain.Todo, error) {
-	var ctx context.Context
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (r *todoRepository) GetAll(ctx context.Context, userID string) ([]domain.Todo, error) {
 
 	var query string = `
 		SELECT id, title, completed, created_at, updated_at, user_id
@@ -53,7 +54,7 @@ func GetAllTodo(pool *pgxpool.Pool, userID string) ([]domain.Todo, error) {
 		ORDER by created_at DESC;
 	`
 
-	var rows, err = pool.Query(ctx, query, userID)
+	var rows, err = r.pool.Query(ctx, query, userID)
 
 	if err != nil {
 		return nil, err
@@ -87,12 +88,7 @@ func GetAllTodo(pool *pgxpool.Pool, userID string) ([]domain.Todo, error) {
 
 }
 
-func GetTodoById(pool *pgxpool.Pool, id int, userID string) (*domain.Todo, error) {
-	var ctx context.Context
-	var cancel context.CancelFunc
-
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (r *todoRepository) GetByID(ctx context.Context, id int, userID string) (*domain.Todo, error) {
 
 	var query string = `
 		SELECT id, title, completed, created_at, updated_at, user_id
@@ -100,7 +96,7 @@ func GetTodoById(pool *pgxpool.Pool, id int, userID string) (*domain.Todo, error
 		WHERE id = $1 AND user_id = $2;
 	`
 	var todo domain.Todo
-	var err = pool.QueryRow(ctx, query, id, userID).Scan(
+	var err = r.pool.QueryRow(ctx, query, id, userID).Scan(
 		&todo.ID,
 		&todo.Title,
 		&todo.Completed,
@@ -110,6 +106,9 @@ func GetTodoById(pool *pgxpool.Pool, id int, userID string) (*domain.Todo, error
 	)
 
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
 		return nil, err
 	}
 
@@ -117,11 +116,7 @@ func GetTodoById(pool *pgxpool.Pool, id int, userID string) (*domain.Todo, error
 
 }
 
-func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool, userID string) (*domain.Todo, error) {
-	var ctx context.Context
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (r *todoRepository) Update(ctx context.Context, id int, input domain.UpdateTodoInput, userID string) (*domain.Todo, error) {
 
 	var query string = `
 		UPDATE todo_api
@@ -132,7 +127,7 @@ func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool, userID 
 
 	var todo domain.Todo
 
-	var err = pool.QueryRow(ctx, query, title, complete, id, userID).Scan(
+	var err = r.pool.QueryRow(ctx, query, input.Title, input.Completed, id, userID).Scan(
 		&todo.ID,
 		&todo.Title,
 		&todo.Completed,
@@ -142,6 +137,9 @@ func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool, userID 
 	)
 
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
 		return nil, err
 	}
 
@@ -149,24 +147,20 @@ func UpdateTodo(pool *pgxpool.Pool, id int, title string, complete bool, userID 
 
 }
 
-func DeleteTodo(pool *pgxpool.Pool, id int, userID string) error {
-	var ctx context.Context
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (r *todoRepository) Delete(ctx context.Context, id int, userID string) error {
 
 	var query string = `
 		DELETE from todo_api
 		WHERE id = $1 AND user_id = $2;
 	`
 
-	commandTag, err := pool.Exec(ctx, query, id, userID)
+	commandTag, err := r.pool.Exec(ctx, query, id, userID)
 	if err != nil {
 		return err
 	}
 
 	if commandTag.RowsAffected() == 0 {
-		return fmt.Errorf("Todo with id %d was not found", id)
+		return domain.ErrNotFound
 	}
 
 	return nil

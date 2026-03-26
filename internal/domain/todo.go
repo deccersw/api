@@ -10,3 +10,13 @@ type Todo struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 	UserID    string    `json:"user_id" db:"user_id"`
 }
+
+type CreateTodoInput struct {
+	Title     string
+	Completed bool
+}
+
+type UpdateTodoInput struct {
+	Title     *string
+	Completed *bool
+}
