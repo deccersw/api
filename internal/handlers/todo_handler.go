@@ -1,204 +1,165 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
-	"todo_api/internal/repository"
+	"todo_api/internal/domain"
+	"todo_api/internal/ports"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type CreateTodoInput struct {
+type TodoHandler struct {
+	service ports.TodoService
+}
+
+func NewTodoHandler(service ports.TodoService) *TodoHandler {
+	return &TodoHandler{service: service}
+}
+
+type createTodoRequest struct {
 	Title     string `json:"title" binding:"required"`
 	Completed bool   `json:"completed"`
 }
 
-type UpdateTodoInput struct {
+type updateTodoRequest struct {
 	Title     *string `json:"title"`
 	Completed *bool   `json:"completed"`
 }
 
-func CreateTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userIDInterface, exist := c.Get("user_id")
-
-		if !exist {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "user_id not found in context"})
-			return
-		}
-
-		userID := userIDInterface.(string)
-		var input CreateTodoInput
-
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		todo, err := repository.CreateTodo(pool, input.Title, input.Completed, userID)
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusCreated, todo)
+func getUserID(c *gin.Context) (string, bool) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user_id not found in context"})
+		return "", false
 	}
-
+	return userID.(string), true
 }
 
-func GetAllTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userIDInterface, exist := c.Get("user_id")
-
-		if !exist {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "user_id not found in context"})
-			return
-		}
-
-		userID := userIDInterface.(string)
-		todos, err := repository.GetAllTodo(pool, userID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, todos)
-
+func (h *TodoHandler) Create(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		return
 	}
+
+	var req createTodoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	todo, err := h.service.Create(c.Request.Context(), domain.CreateTodoInput{
+		Title:     req.Title,
+		Completed: req.Completed,
+	}, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, todo)
 }
 
-func GetTodoByIdHandler(pool *pgxpool.Pool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-		userIDInterface, exist := c.Get("user_id")
-
-		if !exist {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "user_id not found in context"})
-			return
-		}
-
-		userID := userIDInterface.(string)
-
-		idStr := c.Param("id")
-		id, err := strconv.Atoi(idStr)
-
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo id"})
-			return
-		}
-
-		todo, err := repository.GetTodoById(pool, id, userID)
-
-		if err != nil {
-			if err == pgx.ErrNoRows {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Todo not found"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, todo)
-
+func (h *TodoHandler) GetAll(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		return
 	}
+
+	todos, err := h.service.GetAll(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, todos)
 }
 
-func UpdateTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-		userIDInterface, exist := c.Get("user_id")
-
-		if !exist {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "user_id not found in context"})
-			return
-		}
-
-		userID := userIDInterface.(string)
-
-		idStr := c.Param("id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo id"})
-			return
-		}
-
-		var input UpdateTodoInput
-
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		if input.Title == nil && input.Completed == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one field (title/completed) must be provided"})
-			return
-		}
-
-		exsisting, err := repository.GetTodoById(pool, id, userID)
-
-		if err != nil {
-			if err == pgx.ErrNoRows {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Todo not found"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		var completed bool = exsisting.Completed
-		if input.Completed != nil {
-			completed = *input.Completed
-		}
-
-		var title string = exsisting.Title
-		if input.Title != nil {
-			title = *input.Title
-		}
-
-		todo, err := repository.UpdateTodo(pool, id, title, completed, userID)
-		if err != nil {
-			if err == pgx.ErrNoRows {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Todo not fond"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, todo)
-
+func (h *TodoHandler) GetByID(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		return
 	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid todo id"})
+		return
+	}
+
+	todo, err := h.service.GetByID(c.Request.Context(), id, userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, todo)
 }
 
-func DeleteTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-		userIDInterface, exist := c.Get("user_id")
-
-		if !exist {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "user_id not found in context"})
-			return
-		}
-
-		userID := userIDInterface.(string)
-
-		idStr := c.Param("id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo id"})
-			return
-		}
-
-		err = repository.DeleteTodo(pool, id, userID)
-		if err != nil {
-			if err.Error() == "Todo with id "+idStr+" was not found" {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Todo not fond"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"message": "Todo deleted succesfully"})
+func (h *TodoHandler) Update(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		return
 	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid todo id"})
+		return
+	}
+
+	var req updateTodoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Title == nil && req.Completed == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one field must be provided"})
+		return
+	}
+
+	todo, err := h.service.Update(c.Request.Context(), id, domain.UpdateTodoInput{
+		Title:     req.Title,
+		Completed: req.Completed,
+	}, userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, todo)
+}
+
+func (h *TodoHandler) Delete(c *gin.Context) {
+	userID, ok := getUserID(c)
+	if !ok {
+		return
+	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid todo id"})
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), id, userID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "todo deleted successfully"})
 }
