@@ -62,11 +62,6 @@ func main() {
 		todo.DELETE("/:id", todoHandler.Delete)
 	}
 
-	log.Printf("server starting on port %s", cfg.PORT)
-	if err := router.Run(":" + cfg.PORT); err != nil {
-		log.Fatalf("failed to start server: %v", err)
-	}
-
 	srv := &http.Server{
 		Addr:    ":" + cfg.PORT,
 		Handler: router,
