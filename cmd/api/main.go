@@ -25,7 +25,7 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	pool, err := database.Connect(cfg.Port, cfg.Host, cfg.DBName, cfg.SSlmode, cfg.User)
+	pool, err := database.Connect(cfg.Port, cfg.Host, cfg.DBName, cfg.SSlmode, cfg.User, cfg.Password)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}

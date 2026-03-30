@@ -8,12 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect(port, host, dbName, sslmode, user string) (*pgxpool.Pool, error) {
+func Connect(port, host, dbName, sslmode, user, pasword string) (*pgxpool.Pool, error) {
 	var ctx context.Context = context.Background()
 
 	var config *pgxpool.Config
 	var err error
-	config, err = pgxpool.ParseConfig(fmt.Sprintf("postgres://%s@%s:%s/%s?sslmode=%s", user, host, port, dbName, sslmode))
+	config, err = pgxpool.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, pasword host, port, dbName, sslmode))
 
 	if err != nil {
 		log.Printf("Unable to connect to the postgres Server")

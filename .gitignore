@@ -1,3 +1,5 @@
 tmp/
 .env
 .Ds_store
+.env.docker
+.vscode/
