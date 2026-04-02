@@ -13,7 +13,7 @@ func Connect(port, host, dbName, sslmode, user, pasword string) (*pgxpool.Pool, 
 
 	var config *pgxpool.Config
 	var err error
-	config, err = pgxpool.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, pasword host, port, dbName, sslmode))
+	config, err = pgxpool.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, pasword, host, port, dbName, sslmode))
 
 	if err != nil {
 		log.Printf("Unable to connect to the postgres Server")

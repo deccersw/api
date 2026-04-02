@@ -35,7 +35,7 @@ func main() {
 	userRepo := repository.NewUserRepository(pool)
 
 	todoService := service.NewTodoService(todoRepo)
-	userService := service.NewUserService(userRepo, cfg.JWTSecret, 24*time.Hour)
+	userService := service.NewUserService(userRepo, cfg.JWTSecret, cfg.AccessTokenTTL)
 
 	todoHandler := handlers.NewTodoHandler(todoService)
 	userHandler := handlers.NewUserHandler(userService)
