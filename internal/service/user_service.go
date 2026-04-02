@@ -5,18 +5,23 @@ import (
 	"errors"
 	"time"
 	"todo_api/internal/domain"
-	"todo_api/internal/ports"
 	"todo_api/pkg/hasher"
 	"todo_api/pkg/jwtutil"
 )
 
+type UserRepository interface {
+	Create(ctx context.Context, input domain.CreateUserInput) (*domain.User, error)
+	GetByID(ctx context.Context, id string) (*domain.User, error)
+	GetByEmail(ctx context.Context, email string) (*domain.User, error)
+}
+
 type userService struct {
-	repo      ports.UserRepository
+	repo      UserRepository
 	jwtSecret string
 	jwtTTL    time.Duration
 }
 
-func NewUserService(repo ports.UserRepository, jwtSecret string, jwtTTL time.Duration) ports.UserService {
+func NewUserService(repo UserRepository, jwtSecret string, jwtTTL time.Duration) *userService {
 	return &userService{
 		repo:      repo,
 		jwtSecret: jwtSecret,

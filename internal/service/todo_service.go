@@ -4,14 +4,21 @@ import (
 	"context"
 	"errors"
 	"todo_api/internal/domain"
-	"todo_api/internal/ports"
 )
 
-type todoService struct {
-	repo ports.TodoRepository
+type TodoRepository interface {
+	Create(ctx context.Context, input domain.CreateTodoInput, userID string) (*domain.Todo, error)
+	GetAll(ctx context.Context, userID string) ([]domain.Todo, error)
+	GetByID(ctx context.Context, id int, userID string) (*domain.Todo, error)
+	Update(ctx context.Context, id int, input domain.UpdateTodoInput, userID string) (*domain.Todo, error)
+	Delete(ctx context.Context, id int, userID string) error
 }
 
-func NewTodoService(repo ports.TodoRepository) ports.TodoService {
+type todoService struct {
+	repo TodoRepository
+}
+
+func NewTodoService(repo TodoRepository) *todoService {
 	return &todoService{repo: repo}
 }
 

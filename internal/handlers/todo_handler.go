@@ -1,20 +1,28 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
 	"todo_api/internal/domain"
-	"todo_api/internal/ports"
 
 	"github.com/gin-gonic/gin"
 )
 
-type TodoHandler struct {
-	service ports.TodoService
+type TodoService interface {
+	Create(ctx context.Context, input domain.CreateTodoInput, userID string) (*domain.Todo, error)
+	GetAll(ctx context.Context, userID string) ([]domain.Todo, error)
+	GetByID(ctx context.Context, id int, userID string) (*domain.Todo, error)
+	Update(ctx context.Context, id int, input domain.UpdateTodoInput, userID string) (*domain.Todo, error)
+	Delete(ctx context.Context, id int, userID string) error
 }
 
-func NewTodoHandler(service ports.TodoService) *TodoHandler {
+type TodoHandler struct {
+	service TodoService
+}
+
+func NewTodoHandler(service TodoService) *TodoHandler {
 	return &TodoHandler{service: service}
 }
 

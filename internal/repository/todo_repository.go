@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"todo_api/internal/domain"
-	"todo_api/internal/ports"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,7 +13,7 @@ type todoRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewTodoRepository(pool *pgxpool.Pool) ports.TodoRepository {
+func NewTodoRepository(pool *pgxpool.Pool) *todoRepository {
 	return &todoRepository{pool: pool}
 }
 

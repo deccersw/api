@@ -1,19 +1,24 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"todo_api/internal/domain"
-	"todo_api/internal/ports"
 
 	"github.com/gin-gonic/gin"
 )
 
-type UserHandler struct {
-	service ports.UserService
+type UserService interface {
+	Register(ctx context.Context, input domain.CreateUserInput) (*domain.User, error)
+	Login(ctx context.Context, email string, password string) (string, error)
 }
 
-func NewUserHandler(service ports.UserService) *UserHandler {
+type UserHandler struct {
+	service UserService
+}
+
+func NewUserHandler(service UserService) *UserHandler {
 	return &UserHandler{service: service}
 }
 
